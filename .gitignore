@@ -1,3 +1,17 @@
+# Custom ignoring for this repo
+# =============================
+
+# html files (should be committed explicitly)
+*.html
+
+# knitr cache, etc..
+*_cache
+*_files
+
+
+# R specific
+# ==========
+
 # History files
 .Rhistory
 .Rapp.history
