@@ -1,5 +1,6 @@
 ---
 title: "Who Joined Code for Philly Slack Channels in the Last 10 Days?"
+author: Michael Chow
 output:
   html_document:
     toc: true
@@ -19,6 +20,8 @@ library(slackr)
 
 # note that I had to 
 source("fix-slackr.R", local = M <- new.env())
+
+slackr::slackr_setup()
 ```
 
 ```{r, cache = TRUE}
@@ -26,9 +29,10 @@ START_DATE <- now() - ddays(10)
 END_DATE <- now()
 
 users <-
+  #slackr_users() %>%
   M$slackr_fixed_users() %>%
-  as_tibble() %>%
-  select(id, user_name = name)
+  as_tibble()# %>%
+  #select(id, user_name = name)
 
 channels <- slackr_channels()
 
@@ -59,7 +63,7 @@ Note we had just under 15 users join last week (and get put in the 3 default cha
 2. Marieke does an incredible job directly inviting people to the Cypher Philly channel.
 3. Other projects that people joined are on the [active project spreadsheet](https://docs.google.com/spreadsheets/d/1m2I83cjiui5Q6vS6pifZHQKnzrMhjWsgWjqsE3LyKhk/edit#gid=0).
 
-As a side note, I had no idea some of the non-project channels, like "codeforphilly101" or "hacknight" existed...
+As a side note, I had no idea some of the non-project channels, like "codeforphilly101" or "hacknight" existed.
 
 
 ```{r}
@@ -111,3 +115,8 @@ visNetwork(nodes, edges) %>%
 
 ```
 
+## Follow-up Questions
+
+1. All new users are sent to project-ideas, but its last activity was Nov 17th, 2018.
+   Is there a way to get activity there (or replace it w/ a different channel?).
+2. How many people physically showed up for the last Philly 101? I'll be curious to see what proportion from the 101 join the slack channel each month!

@@ -1,0 +1,118 @@
+---
+title: "Who Joined Code for Philly Slack Channels in the Last 10 Days?"
+author: Michael Chow
+output:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+library(dbplyr)
+
+# install.packages("slackr")
+library(slackr)
+
+# note that I had to 
+source("fix-slackr.R", local = M <- new.env())
+
+stopifnot(
+  Sys.getenv("SLACK_API_TOKEN") != ""
+  )
+```
+
+## Fetching data
+
+Uses the following slackr functions:
+
+* slackr_users : get a data frame of Slack
+* slackr_channels : get a data frame of Slack
+* slackr_groups : get a data frame of Slack groups
+* slackr_history: Return message history of a Slack channel to a data.frame
+
+```{r fetch_raw, cache = TRUE}
+START_DATE <- now() - ddays(10)
+END_DATE <- now()
+
+raw_users <-
+  #slackr_users() %>%
+  M$slackr_fixed_users() %>%
+  as_tibble()# %>%
+  #select(id, user_name = name)
+
+raw_channels <-
+  slackr_channels()
+
+fetch_history <- function(channel) {
+  # slack api rate limits at 50 / minute for this kind of request
+  res <- history_slackr(1000, channel = paste0('#', channel), oldest = as.numeric(START_DATE))
+  # slackr returns inconsistent types, so we use only tibbles... :/
+  if (is_empty(res)) return(tibble())
+  res
+  #select(res, user, text, ts)
+}
+
+raw_messages <-
+  channels %>%
+  select(channel_name = name) %>%
+  mutate(
+    history = map(
+      channel_name,
+      slowly(~ fetch_history(.x),  rate_delay(2))
+    )
+  ) %>%
+  as_tibble() %>%
+  unnest(history) %>%
+  mutate(ts = as_datetime(as.numeric(ts)))
+```
+
+## Wrangling
+
+Here, I just removed all the columns holding nested data. Would be quick to add useful ones as tables!
+
+```{r wrangle}
+channels <-
+  raw_channels%>%
+  select(-topic, -purpose, -previous_names, -members)
+
+messages <-
+  raw_messages %>%
+  select(-attachments, -edited, -blocks, -reactions, -reply_users, -files)
+
+users <-
+  raw_users
+```
+
+## Create DB Tables
+
+```{r put-in-db}
+con <- DBI::dbConnect(RPostgres::Postgres(), 
+  host = "localhost",
+  port = 5434,
+  user = "postgres",
+  password = "",
+  dbname = "postgres"
+)
+```
+
+```{r}
+copy_to(con, channels, temporary = FALSE, overwrite = TRUE)
+copy_to(con, messages, temporary = FALSE, overwrite = TRUE)
+copy_to(con, users, temporary = FALSE, overwrite = TRUE)
+```
+
+## Demo of querying DB
+
+```{r}
+# example counting number of archived channels using db
+tbl(con, "channels") %>% count(is_archived)
+```
+
+
+

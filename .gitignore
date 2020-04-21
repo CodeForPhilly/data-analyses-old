@@ -1,5 +1,6 @@
 # Custom ignoring for this repo
 # =============================
+.Renviron
 
 # html files (should be committed explicitly)
 *.html
