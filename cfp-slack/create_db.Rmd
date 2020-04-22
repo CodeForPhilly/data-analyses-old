@@ -19,9 +19,17 @@ library(dbplyr)
 # install.packages("slackr")
 library(slackr)
 
-# note that I had to 
+# note that I had to patch slackr to pull more than 1000 users ----
 source("fix-slackr.R", local = M <- new.env())
 
+# utility funcs ----
+frame_to_listcol <- function(df_col) {
+  # data.frames can have columns that are data.frames. It's a bad
+  # idea, so we turn them into list columns.
+  split(df_col, seq(nrow(df_col)))  
+}
+
+# make sure we have a token ----
 stopifnot(
   Sys.getenv("SLACK_API_TOKEN") != ""
   )
@@ -37,8 +45,8 @@ Uses the following slackr functions:
 * slackr_history: Return message history of a Slack channel to a data.frame
 
 ```{r fetch_raw, cache = TRUE}
-START_DATE <- now() - ddays(10)
-END_DATE <- now()
+#START_DATE <- now() - ddays(10)
+#END_DATE <- now()
 
 raw_users <-
   #slackr_users() %>%
@@ -51,24 +59,42 @@ raw_channels <-
 
 fetch_history <- function(channel) {
   # slack api rate limits at 50 / minute for this kind of request
-  res <- history_slackr(1000, channel = paste0('#', channel), oldest = as.numeric(START_DATE))
+  res <- history_slackr(1000, channel = paste0('#', channel))
   # slackr returns inconsistent types, so we use only tibbles... :/
   if (is_empty(res)) return(tibble())
   res
   #select(res, user, text, ts)
 }
 
-raw_messages <-
-  channels %>%
+raw_messages_nested <-
+  raw_channels %>%
   select(channel_name = name) %>%
   mutate(
     history = map(
       channel_name,
       slowly(~ fetch_history(.x),  rate_delay(2))
     )
+  )
+
+
+# sanity check that dataframe columns are well-structured
+# they should have same # of rows as data
+fix_raw <-
+  raw_messages_nested %>%
+  rowwise() %>%
+  do(
+    valid_subdfs = all(
+      map_int(keep(.$history, ~ "data.frame" %in% class(.x)), nrow) == nrow(.$history)
+    ),
+    fixed = mutate_if(.$history, ~ is(., "data.frame"), frame_to_listcol)
   ) %>%
-  as_tibble() %>%
-  unnest(history) %>%
+  mutate(valid_subdfs = map_lgl(valid_subdfs, identity))
+  #{stopifnot(all(.$valid_subdfs))}
+  
+  
+raw_messages <-
+  fix_raw %>%
+  unnest(fixed) %>%
   mutate(ts = as_datetime(as.numeric(ts)))
 ```
 
@@ -78,12 +104,17 @@ Here, I just removed all the columns holding nested data. Would be quick to add 
 
 ```{r wrangle}
 channels <-
-  raw_channels%>%
-  select(-topic, -purpose, -previous_names, -members)
+  raw_channels %>%
+  select(-topic, -purpose, -previous_names, -members) %>%
+  as_tibble()
 
 messages <-
   raw_messages %>%
-  select(-attachments, -edited, -blocks, -reactions, -reply_users, -files)
+  select(
+    -valid_subdfs, -upload, -display_as_bot, -bot_profile, -pinned_to, -x_files,
+    -attachments, -edited, -blocks, -reactions, -reply_users, -files,
+    -root, -pinned_info, -icons, -file, -comment, -item, -room, -user_profile
+    )
 
 users <-
   raw_users
@@ -102,9 +133,14 @@ con <- DBI::dbConnect(RPostgres::Postgres(),
 ```
 
 ```{r}
-copy_to(con, channels, temporary = FALSE, overwrite = TRUE)
-copy_to(con, messages, temporary = FALSE, overwrite = TRUE)
-copy_to(con, users, temporary = FALSE, overwrite = TRUE)
+copy_slack <- function(con, df) {
+  prefixed <- paste("slack", deparse(substitute(df)), sep = "_")
+  copy_to(con, df, prefixed, temporary = FALSE, overwrite = TRUE)
+}
+
+copy_slack(con, channels)     # creates slack_channels table
+copy_slack(con, messages)
+copy_slack(con, users)
 ```
 
 ## Demo of querying DB
@@ -112,6 +148,10 @@ copy_to(con, users, temporary = FALSE, overwrite = TRUE)
 ```{r}
 # example counting number of archived channels using db
 tbl(con, "channels") %>% count(is_archived)
+```
+
+```{r}
+tbl(con, "messages") %>% group_by(channel_name)
 ```
 
 
