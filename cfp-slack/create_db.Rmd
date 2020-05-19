@@ -127,6 +127,11 @@ messages <-
 users <-
   raw_users %>%
   select(id, real_name, display_name, title, team_id, deleted, updated, status_text, is_invited_user, bot_id, team, guest_invited_by)
+
+## example of joining all data
+# channels %>%
+#   left_join(messages, c("name" = "channel_name")) %>%
+#   left_join(users, c("user" = "id"))
 ```
 
 ## Create DB Tables
