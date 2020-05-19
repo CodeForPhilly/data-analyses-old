@@ -55,7 +55,8 @@ raw_users <-
   #select(id, user_name = name)
 
 raw_channels <-
-  slackr_channels()
+  slackr_channels() %>%
+  filter(!is_archived)
 
 fetch_history <- function(channel) {
   # slack api rate limits at 50 / minute for this kind of request
@@ -72,13 +73,14 @@ raw_messages_nested <-
   mutate(
     history = map(
       channel_name,
-      slowly(~ fetch_history(.x),  rate_delay(2))
+      slowly(~ fetch_history(.x),  rate_delay(1.25))
     )
   )
 
 
 # sanity check that dataframe columns are well-structured
 # they should have same # of rows as data
+# this is kind of nuts, but that's what happens when columns are data.frames
 fix_raw <-
   raw_messages_nested %>%
   rowwise() %>%
@@ -86,9 +88,13 @@ fix_raw <-
     valid_subdfs = all(
       map_int(keep(.$history, ~ "data.frame" %in% class(.x)), nrow) == nrow(.$history)
     ),
-    fixed = mutate_if(.$history, ~ is(., "data.frame"), frame_to_listcol)
+    fixed = mutate_if(.$history, ~ is(., "data.frame"), frame_to_listcol),
+    channel_name = .$channel_name
   ) %>%
-  mutate(valid_subdfs = map_lgl(valid_subdfs, identity))
+  mutate(
+    valid_subdfs = as.logical(valid_subdfs),
+    channel_name = as.character(channel_name)
+    )
   #{stopifnot(all(.$valid_subdfs))}
   
   
@@ -111,13 +117,16 @@ channels <-
 messages <-
   raw_messages %>%
   select(
-    -valid_subdfs, -upload, -display_as_bot, -bot_profile, -pinned_to, -x_files,
-    -attachments, -edited, -blocks, -reactions, -reply_users, -files,
-    -root, -pinned_info, -icons, -file, -comment, -item, -room, -user_profile
-    )
+    channel_name, type, subtype, text, ts, username, bot_id, user, team, client_msg_id,
+    thread_ts, reply_count, reply_users_count, latest_reply, subscribed,
+    parent_user_id, last_read, is_starred, item_type, upload_reply_to, topic,
+    purpose, inviter, old_name, name, is_intro, hidden, bot_link, new_broadcast,
+    channel, no_notifications, permalink
+  )
 
 users <-
-  raw_users
+  raw_users %>%
+  select(id, real_name, display_name, title, team_id, deleted, updated, status_text, is_invited_user, bot_id, team, guest_invited_by)
 ```
 
 ## Create DB Tables
@@ -142,6 +151,13 @@ copy_slack(con, channels)     # creates slack_channels table
 copy_slack(con, messages)
 copy_slack(con, users)
 ```
+
+```{r, eval=FALSE}
+write_csv(channels, "channels.csv")
+write_csv(messages, "messages.csv")
+write_csv(users, "users.csv")
+```
+
 
 ## Demo of querying DB
 
