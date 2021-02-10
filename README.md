@@ -1,18 +1,12 @@
 # data-analyses
 For holding self-contained data analyses related to Code for Philly projects
 
-## Adding API credentials
+## Getting started
 
-1. Modify `.Renviron.dev` with our slack API token (message machow if you don't now what that is.)
-2. Move `.Renviron.dev` to `.Renviron`
+### Install cfpr
 
-## Adding last 1000 slack messages per channel to DB
+See instructions in the [cfpr repo](https://github.com/codeforphilly/cfpr)
 
-```
-docker-compose build
+### Adding new analyses using RStudio
 
-docker-compose up -d
-
-docker-compose run tidyverse R -e 'rmarkdown::render("cfp-slack/create_db.Rmd")'
-```
-
+See this [screencast for a 10 minute walkthrough](https://www.loom.com/share/2a8d3c6a64c0449eada2b64d3bcbb5bb).
