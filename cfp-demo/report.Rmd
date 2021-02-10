@@ -1,0 +1,44 @@
+---
+title: "metrics"
+output:
+  github_document:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(cfpr)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+```
+
+## Analysis
+
+```{r}
+cfp_views_laddr_projects() %>%
+  arrange(desc(created)) %>%
+  head(10) %>%
+  select(title, handle, created, chat_channel)
+```
+
+
+### How many projects get created per year?
+
+```{r}
+# How many projects are created in a given month?
+cfp_views_laddr_projects() %>%
+  mutate(year_created = floor_date(created, "year")) %>%
+  select(title, year_created) %>%
+  count(year_created) %>%
+  collect() %>%
+  mutate(n = as.integer(n)) %>%
+  ggplot(aes(year_created, n)) + geom_line() +
+  expand_limits(y = 0)
+```
