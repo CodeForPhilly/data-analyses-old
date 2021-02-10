@@ -1,5 +1,12 @@
 # data-analyses
-For holding self-contained data analyses related to Code for Philly projects
+
+For holding self-contained data analyses related to Code for Philly projects.
+
+## How does it work?
+
+Each folder holds a set of reports.
+Reports can be created using Rmarkdown (.Rmd files), and "knitted" to markdown that's readable on github.
+See this [cfp-slack report](https://github.com/CodeForPhilly/data-analyses/blob/master/cfp-slack/report.md) for an example.
 
 ## Getting started
 
