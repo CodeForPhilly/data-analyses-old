@@ -17,4 +17,4 @@ For setup, see instructions in the [cfpr repo](https://github.com/codeforphilly/
 
 See the [10 minute walkthrough](https://www.loom.com/share/2a8d3c6a64c0449eada2b64d3bcbb5bb) below.
 
-![video demo](./.video_demo.png)
+[![video demo](./.video_demo.png)](https://www.loom.com/share/2a8d3c6a64c0449eada2b64d3bcbb5bb)
