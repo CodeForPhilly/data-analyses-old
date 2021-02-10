@@ -7,7 +7,6 @@
 
 # knitr cache, etc..
 *_cache
-*_files
 
 # Vim
 .*.sw[op]

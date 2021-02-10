@@ -1,0 +1,115 @@
+---
+title: "metrics"
+output:
+  github_document:
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(cfpr)
+library(dplyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+```
+
+## Project creation date
+
+### Top 10 most recent projects
+
+```{r}
+cfp_views_laddr_projects() %>%
+  arrange(desc(created)) %>%
+  head(10) %>%
+  select(title, handle, created, chat_channel)
+```
+
+### How many projects get created per year?
+
+```{r}
+# How many projects are created in a given month?
+cfp_views_laddr_projects() %>%
+  mutate(year_created = floor_date(created, "year")) %>%
+  select(title, year_created) %>%
+  count(year_created) %>%
+  collect() %>%
+  mutate(n = as.integer(n)) %>%
+  ggplot(aes(year_created, n)) + geom_line() +
+  expand_limits(y = 0)
+```
+
+### How many people were creating projects during the 2013 spike?
+
+```{r}
+cfp_views_laddr_projects() %>%
+  filter(created >= "2013-01-01", created < "2014-01-01") %>%
+  count(creator_id, sort = TRUE) %>%
+  left_join(
+    cfp_laddr_people() %>% select(ID, Username),
+    c("creator_id" = "ID")
+  ) %>%
+  arrange(desc(n))
+
+```
+
+## Project slack activity (for those created in 2020)
+
+
+```{r}
+projects_2020 <-
+  cfp_views_laddr_projects() %>%
+  filter(created > "2020-01-01") %>%
+  select(title, chat_channel, users_url, developers_url)
+
+channel_messages <-
+  cfp_slack_messages() %>%
+  left_join(
+    cfp_slack_channels() %>% select(channel_id = id, channel_name = name),
+    "channel_id"
+  )
+
+project_messages <-
+  projects_2020 %>%
+  inner_join(
+    channel_messages %>% select(channel_name, type, username, text, ts),
+    c("chat_channel" = "channel_name")
+  )
+```
+
+### Total messages sent per project
+
+```{r}
+project_messages %>%
+  count(chat_channel, sort = TRUE)
+```
+
+### Messages per month
+
+```{r}
+project_messages %>%
+  #filter(chat_channel == "philadelphia-bail-fund") %>%
+  collect() %>%
+  mutate(message_month = floor_date(ts, "month")) %>%
+  count(chat_channel, message_month) %>%
+  ggplot(aes(message_month, n, color = chat_channel)) + geom_line() 
+```
+
+### Messages across different CHIME project channels
+
+```{r}
+channel_messages %>%
+  filter(channel_name %LIKE% "%chime%") %>%
+  mutate(msg_week = floor_date(ts, "week")) %>%
+  collect() %>%
+  count(channel_name, msg_week, sort = TRUE) %>%
+  ggplot(aes(msg_week, n, color = channel_name)) + facet_wrap(~ channel_name) + geom_line() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+```
+
+
