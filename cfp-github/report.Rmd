@@ -1,0 +1,173 @@
+---
+title: "Example Github Analysis for CFP Pipeline"
+output:
+  github_document: default
+  html_document: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE)
+# Sys.getenv("CFP_WAREHOUSE_URI") # should give connection string
+dbpath::dialect_defaults$set(SnowflakeDSIIDriver = "odbc")
+library(cfpr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+```
+
+
+### Number of Contributors
+```{r}
+cfp_github_collaborators() %>%
+  collect() %>% # pull locally
+  # filter(grepl('cfp-data-pipeline', URL, fixed=TRUE))  %>% 
+  # mutate(month_created = floor_date(CREATED_AT, "month")) %>% # get day of creation
+  # select(ID) %>%
+  count() %>%
+  rename(Contributors = n)
+```
+
+### Commits per Date
+
+```{r}
+## 
+cfp_github_commits() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+  mutate(day_created = floor_date(COMMIT__AUTHOR__DATE, "day")) %>% # get day of creation
+  select('_SDC_REPOSITORY', day_created) %>%
+  count(day_created, sort=FALSE) %>%
+  rename(Date = day_created, Commits = n)
+```
+
+### Commits per Month
+
+```{r}
+## days with most commits
+cfp_github_commits() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(COMMIT__AUTHOR__DATE, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created, sort=FALSE) %>%
+  rename(Month = month_created, Commits = n)
+```
+
+
+```{r}
+# cfp_github_commits() %>%
+#   collect() %>% # pull locally
+#   filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+#   mutate(day_created = floor_date(COMMIT__AUTHOR__DATE, "day")) %>% # get day of creation
+#   select('_SDC_REPOSITORY', day_created) %>%
+#   count(day_created) %>%
+#     ggplot(aes(day_created, n)) + 
+#       geom_line() +
+#       expand_limits(y=0) + 
+#       labs(title="cfp-data-pipeline Commits per day", x="Date", y="Count") +
+#       theme_light() + 
+#       theme(plot.title = element_text(hjust = 0.5))
+
+
+cfp_github_commits() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(COMMIT__AUTHOR__DATE, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created) %>%
+    ggplot(aes(month_created, n)) + 
+      geom_line() +
+      expand_limits(y=0) + 
+      labs(title="cfp-data-pipeline Commits per Month", x="Month", y="Count") +
+      theme_light() + 
+      theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+### Issues per Month
+
+```{r}
+cfp_github_issues() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(CREATED_AT, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created) %>%
+  rename(Month = month_created, Issues = n)
+```
+
+
+
+```{r}
+# cfp_github_issues() %>%
+#   collect() %>% # pull locally
+#   filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+#   mutate(day_created = floor_date(CREATED_AT, "day")) %>% # get day of creation
+#   select('_SDC_REPOSITORY', day_created) %>%
+#   count(day_created) %>%
+#     ggplot(aes(day_created, n)) + 
+#       geom_line() +
+#       expand_limits(y=0) + 
+#       labs(title="cfp-data-pipeline Issues per Day", x="Day", y="Count") +
+#       theme_light() + 
+#       theme(plot.title = element_text(hjust = 0.5))
+
+
+cfp_github_issues() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', COMMENTS_URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(CREATED_AT, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created) %>%
+    ggplot(aes(month_created, n)) + 
+      geom_line() +
+      expand_limits(y=0) + 
+      labs(title="cfp-data-pipeline Issues per Month", x="Month", y="Count") +
+      theme_light() + 
+      theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+### Pull Requests Per Month
+
+```{r}
+cfp_github_pull_requests() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(CREATED_AT, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created) %>%
+  rename(Month = month_created, "Pull Requests" = n)
+```
+
+
+
+```{r}
+# cfp_github_pull_requests() %>%
+#   collect() %>% # pull locally
+#   filter(grepl('cfp-data-pipeline', URL, fixed=TRUE))  %>% 
+#   mutate(day_created = floor_date(CREATED_AT, "day")) %>% # get day of creation
+#   select('_SDC_REPOSITORY', day_created) %>%
+#   count(day_created) %>%
+#     ggplot(aes(day_created, n)) + 
+#       geom_line() +
+#       expand_limits(y=0) + 
+#       labs(title="cfp-data-pipeline Pull Requests per Day", x="Day", y="Count") +
+#       theme_light() + 
+#       theme(plot.title = element_text(hjust = 0.5))
+
+
+cfp_github_pull_requests() %>%
+  collect() %>% # pull locally
+  filter(grepl('cfp-data-pipeline', URL, fixed=TRUE))  %>% 
+  mutate(month_created = floor_date(CREATED_AT, "month")) %>% # get day of creation
+  select('_SDC_REPOSITORY', month_created) %>%
+  count(month_created) %>%
+    ggplot(aes(month_created, n)) + 
+      geom_line() +
+      expand_limits(y=0) + 
+      labs(title="cfp-data-pipeline Pull Requests per Month", x="Month", y="Count") +
+      theme_light() + 
+      theme(plot.title = element_text(hjust = 0.5))
+```
